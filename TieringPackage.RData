@@ -1,0 +1,221 @@
+#Tiering Package
+
+
+library(lattice)#needed to get level plots
+
+
+#data is input as a matrix wtih species name, stemHeight, Height
+
+#create.species.list
+
+
+
+#############################
+######  DVS_Height
+#############################
+#code to get tiering just based on height alone.
+
+#create bp.species list
+#use this to get start and end values, and estimate resonable guess for break width
+
+get.height.table<-function(mat3,breaks=10)#creates the table of data.
+{
+	bp.species1<-create.species.list(mat3)
+	startVal<-0
+	endVal<-breaks*ceiling(max(mat3[,3]/breaks))
+	res<-matrix(NA,endVal/breaks,length(bp.species1))
+	colnames(res)<-names(bp.species1)
+	rownames(res)<-seq(startVal+breaks,endVal,breaks)
+	for(j in 1:length(bp.species1)) #for each species
+	{
+		
+		res[,j]<-(hist((bp.species1[[j]][,3]),plot=FALSE,breaks=seq(startVal,endVal,breaks)))$counts
+
+	
+	}
+	return(res)
+}
+
+get.height.table(mat3)#works
+
+#need to add in row names to the below and make sure new window isn't called.
+get.active.table<-function(mat3)
+{
+	at1<-sp.to.zone(get.sp.active.table(mat3))
+	res<-matrix(NA,ncol(at1[[1]]),length(at1))
+	colnames(res)<-names(at1)
+	for(j in 1:length(at1)) #for each species
+	{
+		for(i in 1:ncol(at1[[1]]))
+		{
+			#sum all counts in stem heights 1:20 k for heights 1:35 i
+			#insert this count in new matrix (k
+	
+			res[i,j]<-sum(at1[[j]][,i])
+		}
+	}
+	par(las=2)
+	return(res)
+}
+get.active.table(mat3)
+
+
+
+levelplot.tier<-function(gmh1,mainheading="")#output of get.matrix.height, and an option for a plot title.
+{
+	col.blue3<-c("#F7FBFF","#C6DBEF","#6BAED6","#4292C6","#2171B5","#08519C","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B","#08306B")
+
+	levelplot(t(gmh1),main=paste(mainheading),xlab="Species",ylab="Height", scales=list(x=list(rot=90)),col.regions=col.blue3[1:16])
+
+}
+
+levelplot.tier(get.matrix.height(mat3))
+
+
+count.sp.vs.comm<-function(c1)#this tells us how much of each species has no overlap with anyother within the community.
+{
+	c1<-t(c1)
+	res1<-c(1:nrow(c1))#where nrow should correspond to the number of abudant species.
+	j<-1
+	for(j in 1:nrow(c1))#for each species in turn
+	{
+		r1<-seq(1,nrow(c1),1)#what species do not include the 
+		r1<-r1[-j] #removes the species in question from the comparison
+		res2<-c(1:ncol(c1))
+		for(i in 1:ncol(c1))
+		{
+			res2[i]<-ifelse(c1[j,i]>sum(c1[r1,i]),c1[j,i]-sum(c1[r1,i]),0)				
+		}
+	res1[j]<-sum(res2)/sum(c1[j,])
+	
+	}
+	names(res1)<-names(c1)
+	return(res1)#
+}	
+
+count.sp.vs.comm(get.matrix.height(mat3))
+
+
+count.at.vs.comm<-function(mat3,breaks=10)#this tells us how much of each species has no overlap with anyother within the community.
+{
+	c1<-sp.to.zone(get.sp.active.table(mat3,breaks))
+	res1<-c(1:length(c1)) #where nrow should correspond to the number of abudant species.res
+	for(k in 1:length(c1))#for each species in turn. 
+	{
+		c2<-c1
+		main.sp<-c1[[k]]
+		c2[[k]]<-NULL #removes that species from the list of everything
+		comm.mat<-Reduce('+',c2) #all the things added together
+		sp.mat<-Reduce('-',list(main.sp,comm.mat)) # subtracts community from species
+		res1[k]<-sum(sp.mat[sp.mat>0])/sum(main.sp) #gets the remaining, non overlapped taxa
+			
+	}
+	names(res1)<-names(c1)
+	return(res1)# return a matrix col = no of species, which gives the percentage of each taxa specimens which don't overlap with anything else in the comm.
+}	
+
+
+count.at.vs.comm((mat3))#
+
+
+#######################################################
+#functions that may be useful but aren't the key point
+
+
+sp.to.zone<-function(at1)
+{
+	res<-list()
+	for(k in 1:length(at1))
+		{
+			res[[k]]<-matrix(0,nrow(at1[[k]]),ncol(at1[[k]])) #
+
+			for(i in 1:nrow(at1[[k]]))
+	{
+	
+	for(j in i:ncol(at1[[k]]))
+	{
+	
+	res[[k]][i,j]<-sum(at1[[k]][i,j:ncol(at1[[k]])])
+	}
+	
+	}
+	
+	}
+	names(res)<-names(at1)
+	return(res)
+}
+sp.to.zone(get.sp.active.table(mat3))
+
+
+
+#---->#need to adapte so can do get.active.table as well.
+levelplot(t(plot.col.per.species(sp.to.zone(active.table.m(e.split.mmh)))),main="E",xlab="Species",ylab="Height",col.regions=col.blue3[1:16])
+levelplot(t(plot.col.per.species(sp.to.zone(get.active.table(mat3)))),col.regions=col.blue3[1:16])
+
+
+#all.e.sp<-get.matrix.height(e.species1)#where e.species1 is a list of spatial patterns with heights by species
+#rownames(all.e.sp)<-rownames(all.e.sp.u)#names don't get taken over.
+
+
+get.sp.active.table<-function(mat3,breaks=10)#used to be active.table.m#breaks=10 ha
+{
+	bp.split.mmh<-create.species.list(mat3)
+	endValS<-breaks*ceiling(max(mat3[,2]/breaks))
+	endValH<-breaks*ceiling(max(mat3[,3]/breaks))
+	res<-list()
+	for(i in 1:length(bp.split.mmh))
+	{
+		stem.heights<-breaks*floor(bp.split.mmh[[i]][,2]/breaks)
+		heights<-breaks*ceiling(bp.split.mmh[[i]][,3]/breaks)
+		#yest1.a[,2][test1.a[,1]==5]
+		res1<-matrix(NA,length(stem.heights),2)
+		res1[,1]<-stem.heights
+		res1[,2]<-heights
+		res2<-matrix(0,(1+endValS/breaks),endValH/breaks)
+		rownames(res2)<-seq(0,endValS,breaks)
+		colnames(res2)<-seq(breaks,endValH,breaks)
+		for(j in seq(0,max(stem.heights),breaks))#go through each stem bin 
+		{
+			stuff<-table(res1[,2][res1[,1]==j])#table of heights given the stem length provided by j.j<-5
+			height.bins<-as.numeric(names(stuff))
+			for(k in 1:length(height.bins))
+			{
+				res2[j/breaks+1,height.bins[k]/breaks]<-stuff[k]
+				#print(stem.bins[k])
+			}
+		
+		}
+		
+
+		res[[i]]<-res2
+	}
+	names(res)<-names(bp.split.mmh)
+	return(res)
+}
+
+get.sp.active.table(mat3)
+
+create.species.list<-function(mat3)#data is input as a matrix wtih species name, stemHeight, Height
+{
+	sp.names<-names(table(mat3[,1]))
+	res1<-list()
+	for(i in 1:length(sp.names))
+	{
+		res1[[i]]<-subset(mat3,mat3[,1]==sp.names[i])
+	
+	}
+	names(res1)<-sp.names
+	return(res1)
+}
+
+create.species.list(mat3)
+
+
+#############################
+######  DVS_UptakeZone
+#############################
+#code to get tiering just based on height alone.
+
+
+
+#lmp.split.mmh is a list of species, x, y, stem.height. active.height
